@@ -5,7 +5,8 @@
 @prefix k8s: <http://example.org/k8s-ontology#> .
 
 <http://example.org/k8s-ontology> rdf:type owl:Ontology ;
-    rdfs:comment "A consolidated K8s ontology mapping structural entities to dynamic operational states and disk-based logging." .
+    rdfs:label "Kubernetes Knowledge Graph Ontology" ;
+    rdfs:comment "A comprehensive ontology for K8s modeling physical infrastructure, virtual networking, workload replication, and operational logs." .
 
 #################################################################
 #    Classes
@@ -17,6 +18,7 @@ k8s:Node rdf:type owl:Class .
 k8s:Pod rdf:type owl:Class .
 k8s:Container rdf:type owl:Class .
 k8s:Service rdf:type owl:Class .
+k8s:Deployment rdf:type owl:Class .
 k8s:Event rdf:type owl:Class .
 
 # Operational State Enumerations
@@ -27,7 +29,7 @@ k8s:NodeCondition rdf:type owl:Class ;
     owl:oneOf ( k8s:Ready k8s:NotReady k8s:MemoryPressure k8s:DiskPressure ) .
 
 #################################################################
-#    Object Properties (Structural & Operational)
+#    Object Properties (Relationships)
 #################################################################
 
 k8s:hasNode rdf:type owl:ObjectProperty ;
@@ -46,28 +48,38 @@ k8s:hasNodeCondition rdf:type owl:ObjectProperty ;
     rdfs:domain k8s:Node ;
     rdfs:range k8s:NodeCondition .
 
+# Replication Logic
+k8s:managesReplica rdf:type owl:ObjectProperty ;
+    rdfs:domain k8s:Deployment ;
+    rdfs:range k8s:Pod .
+
+k8s:generatedBy rdf:type owl:ObjectProperty ;
+    owl:inverseOf k8s:managesReplica ;
+    rdfs:domain k8s:Pod ;
+    rdfs:range k8s:Deployment .
+
+# Event Linkage
 k8s:involvedObject rdf:type owl:ObjectProperty ;
     rdfs:domain k8s:Event ;
     rdfs:range [ rdf:type owl:Class ; owl:unionOf (k8s:Pod k8s:Node k8s:Service) ] .
 
 #################################################################
-#    Datatype Properties (Metadata & Disk Paths)
+#    Datatype Properties (Attributes & States)
 #################################################################
 
-# Resource Identification
+# Identification
 k8s:resourceName rdf:type owl:DatatypeProperty ;
     rdfs:range xsd:string .
 
-# Dynamic State
-k8s:restartCount rdf:type owl:DatatypeProperty ;
-    rdfs:domain k8s:Container ;
-    rdfs:range xsd:integer .
-
-k8s:startTime rdf:type owl:DatatypeProperty ;
-    rdfs:domain k8s:Pod ;
-    rdfs:range xsd:dateTime .
-
 # Networking
+k8s:clusterVirtualIP rdf:type owl:DatatypeProperty ;
+    rdfs:domain k8s:Cluster ;
+    rdfs:range xsd:string .
+
+k8s:nodeInternalIP rdf:type owl:DatatypeProperty ;
+    rdfs:domain k8s:Node ;
+    rdfs:range xsd:string .
+
 k8s:podIP rdf:type owl:DatatypeProperty ;
     rdfs:domain k8s:Pod ;
     rdfs:range xsd:string .
@@ -76,13 +88,25 @@ k8s:nodePort rdf:type owl:DatatypeProperty ;
     rdfs:domain k8s:Service ;
     rdfs:range xsd:integer .
 
-# Disk-Based Logging (Updated)
+# Operational Metrics & Paths
+k8s:restartCount rdf:type owl:DatatypeProperty ;
+    rdfs:domain k8s:Container ;
+    rdfs:range xsd:integer .
+
+k8s:startTime rdf:type owl:DatatypeProperty ;
+    rdfs:domain k8s:Pod ;
+    rdfs:range xsd:dateTime .
+
 k8s:logFilePath rdf:type owl:DatatypeProperty ;
-    rdfs:comment "The absolute physical path to the log file on the Node's disk, typically /var/log/pods/..." ;
+    rdfs:comment "Absolute path to the log file on the Node's physical disk." ;
     rdfs:domain k8s:Pod ;
     rdfs:range xsd:string .
 
-# Event Metadata
+k8s:replicaIndex rdf:type owl:DatatypeProperty ;
+    rdfs:domain k8s:Pod ;
+    rdfs:range xsd:integer .
+
+# Event Data
 k8s:eventMessage rdf:type owl:DatatypeProperty ;
     rdfs:domain k8s:Event ;
     rdfs:range xsd:string .
