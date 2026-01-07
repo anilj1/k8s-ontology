@@ -48,6 +48,10 @@ k8s:hasNodeCondition rdf:type owl:ObjectProperty ;
     rdfs:domain k8s:Node ;
     rdfs:range k8s:NodeCondition .
 
+k8s:hasContainer rdf:type owl:ObjectProperty ;
+    rdfs:domain k8s:Pod ;
+    rdfs:range k8s:Container .
+
 # Replication Logic
 k8s:managesReplica rdf:type owl:ObjectProperty ;
     rdfs:domain k8s:Deployment ;
@@ -104,6 +108,19 @@ k8s:logFilePath rdf:type owl:DatatypeProperty ;
 
 k8s:replicaIndex rdf:type owl:DatatypeProperty ;
     rdfs:domain k8s:Pod ;
+    rdfs:range xsd:integer .
+
+# Pod image and version data
+k8s:imageName rdf:type owl:DatatypeProperty ;
+    rdfs:domain k8s:Container ;
+    rdfs:range xsd:string .
+
+k8s:imageVersion rdf:type owl:DatatypeProperty ;
+    rdfs:domain k8s:Container ;
+    rdfs:range xsd:string . # e.g., "1.21" or "latest"
+
+k8s:containerPort rdf:type owl:DatatypeProperty ;
+    rdfs:domain k8s:Container ;
     rdfs:range xsd:integer .
 
 # Event Data
