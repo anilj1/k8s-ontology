@@ -1,0 +1,92 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix k8s: <http://example.org/k8s-ontology#> .
+
+<http://example.org/k8s-ontology> rdf:type owl:Ontology ;
+    rdfs:comment "A consolidated K8s ontology mapping structural entities to dynamic operational states and disk-based logging." .
+
+#################################################################
+#    Classes
+#################################################################
+
+k8s:Cluster rdf:type owl:Class .
+k8s:Namespace rdf:type owl:Class .
+k8s:Node rdf:type owl:Class .
+k8s:Pod rdf:type owl:Class .
+k8s:Container rdf:type owl:Class .
+k8s:Service rdf:type owl:Class .
+k8s:Event rdf:type owl:Class .
+
+# Operational State Enumerations
+k8s:PodPhase rdf:type owl:Class ;
+    owl:oneOf ( k8s:Pending k8s:Running k8s:Succeeded k8s:Failed k8s:Unknown ) .
+
+k8s:NodeCondition rdf:type owl:Class ;
+    owl:oneOf ( k8s:Ready k8s:NotReady k8s:MemoryPressure k8s:DiskPressure ) .
+
+#################################################################
+#    Object Properties (Structural & Operational)
+#################################################################
+
+k8s:hasNode rdf:type owl:ObjectProperty ;
+    rdfs:domain k8s:Cluster ;
+    rdfs:range k8s:Node .
+
+k8s:runsOn rdf:type owl:ObjectProperty ;
+    rdfs:domain k8s:Pod ;
+    rdfs:range k8s:Node .
+
+k8s:hasCurrentPhase rdf:type owl:ObjectProperty ;
+    rdfs:domain k8s:Pod ;
+    rdfs:range k8s:PodPhase .
+
+k8s:hasNodeCondition rdf:type owl:ObjectProperty ;
+    rdfs:domain k8s:Node ;
+    rdfs:range k8s:NodeCondition .
+
+k8s:involvedObject rdf:type owl:ObjectProperty ;
+    rdfs:domain k8s:Event ;
+    rdfs:range [ rdf:type owl:Class ; owl:unionOf (k8s:Pod k8s:Node k8s:Service) ] .
+
+#################################################################
+#    Datatype Properties (Metadata & Disk Paths)
+#################################################################
+
+# Resource Identification
+k8s:resourceName rdf:type owl:DatatypeProperty ;
+    rdfs:range xsd:string .
+
+# Dynamic State
+k8s:restartCount rdf:type owl:DatatypeProperty ;
+    rdfs:domain k8s:Container ;
+    rdfs:range xsd:integer .
+
+k8s:startTime rdf:type owl:DatatypeProperty ;
+    rdfs:domain k8s:Pod ;
+    rdfs:range xsd:dateTime .
+
+# Networking
+k8s:podIP rdf:type owl:DatatypeProperty ;
+    rdfs:domain k8s:Pod ;
+    rdfs:range xsd:string .
+
+k8s:nodePort rdf:type owl:DatatypeProperty ;
+    rdfs:domain k8s:Service ;
+    rdfs:range xsd:integer .
+
+# Disk-Based Logging (Updated)
+k8s:logFilePath rdf:type owl:DatatypeProperty ;
+    rdfs:comment "The absolute physical path to the log file on the Node's disk, typically /var/log/pods/..." ;
+    rdfs:domain k8s:Pod ;
+    rdfs:range xsd:string .
+
+# Event Metadata
+k8s:eventMessage rdf:type owl:DatatypeProperty ;
+    rdfs:domain k8s:Event ;
+    rdfs:range xsd:string .
+
+k8s:eventReason rdf:type owl:DatatypeProperty ;
+    rdfs:domain k8s:Event ;
+    rdfs:range xsd:string .
