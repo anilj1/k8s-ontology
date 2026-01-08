@@ -1,0 +1,70 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix sys: <http://ontology.example.org/system-design#> .
+
+# Classes
+sys:Service a owl:Class ;
+    rdfs:comment "A logical microservice." .
+
+sys:Interface a owl:Class ;
+    rdfs:comment "A collection of endpoints (e.g., a REST API or gRPC Service)." .
+
+sys:Endpoint a owl:Class ;
+    rdfs:comment "A specific functional entry point (e.g., GET /users)." .
+
+sys:Table a owl:Class ;
+    rdfs:comment "A logical database table or collection." .
+
+sys:Database a owl:Class ;
+    rdfs:comment "A logical database instance (e.g., a Postgres Cluster)." .
+
+# Properties (Relationships)
+sys:exposes a owl:ObjectProperty ;
+    rdfs:domain sys:Service ;
+    rdfs:range sys:Interface .
+
+sys:containsEndpoint a owl:ObjectProperty ;
+    rdfs:domain sys:Interface ;
+    rdfs:range sys:Endpoint .
+
+sys:invokes a owl:ObjectProperty ;
+    rdfs:domain sys:Service ;
+    rdfs:range sys:Endpoint .
+
+sys:tableName a owl:DatatypeProperty ;
+    rdfs:domain sys:Table ;
+    rdfs:range xsd:string .
+
+sys:dbEngine a owl:DatatypeProperty ;
+    rdfs:domain sys:Database ;
+    rdfs:range xsd:string .
+
+sys:protocol a owl:DatatypeProperty ;
+    rdfs:domain sys:Interface ;
+    rdfs:range xsd:string .
+
+sys:path a owl:DatatypeProperty ;
+    rdfs:domain sys:Endpoint ;
+    rdfs:range xsd:string .
+
+sys:method a owl:DatatypeProperty ;
+    rdfs:domain sys:Endpoint ;
+    rdfs:range xsd:string .
+
+# Data Ownership & Storage Chain
+sys:managesTable a owl:ObjectProperty ;
+    rdfs:domain sys:Service ;
+    rdfs:range sys:Table .
+
+sys:residesIn a owl:ObjectProperty ;
+    rdfs:domain sys:Table ;
+    rdfs:range sys:Database ;
+    rdfs:comment "Links a logical table to a logical database instance." .
+
+# The Infrastructure Bridge Property
+sys:k8sRef a owl:DatatypeProperty ;
+    rdfs:domain sys:Service ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The label used to link this service to the K8s Ontology (e.g., app-name)." .
