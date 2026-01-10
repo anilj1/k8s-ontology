@@ -2,69 +2,249 @@
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-@prefix sys: <http://ontology.example.org/system-design#> .
+@prefix sys: <http://example.org/system-design#> .
 
-# Classes
+# --- Metadata Properties ---
+
+sys:design_context a owl:AnnotationProperty ;
+    rdfs:comment "Architectural intent or design patterns." .
+
+sys:log_context a owl:AnnotationProperty ;
+    rdfs:comment "Logging strategy or trace metadata." .
+
+# --- Classes ---
+
+sys:Cluster a owl:Class ;
+    rdfs:comment "Represents geographic Site A or Site B." ;
+    sys:design_context "Defines a bounded context within the system." ;
+    sys:log_context "Log service_id and deployment_version." .
+
+sys:SubSystem a owl:Class ;
+    rdfs:comment "A logical grouping of services within a cluster (e.g., Payment-Module)." ;
+    sys:design_context "Defines a bounded context within the system." ;
+    sys:log_context "Log service_id and deployment_version." .
+
+sys:UnifiedEndpoint a owl:Class ;
+    rdfs:subClassOf sys:Endpoint ;
+    rdfs:comment "A logical global entry point (DNS/BGP) that abstracts the HA pair." ;
+    sys:design_context "Defines a bounded context within the system." ;
+    sys:log_context "Log service_id and deployment_version." .
+
+sys:GeoHAConfig a owl:Class ;
+    rdfs:comment "Encapsulates synchronization, arbitration, and replication settings." ;
+    sys:design_context "Defines a bounded context within the system." ;
+    sys:log_context "Log service_id and deployment_version." .
+
 sys:Service a owl:Class ;
-    rdfs:comment "A logical microservice." .
+    rdfs:comment "A logical microservice." ;
+    sys:design_context "Defines a bounded context within the system." ;
+    sys:log_context "Log service_id and deployment_version." .
 
 sys:Interface a owl:Class ;
-    rdfs:comment "A collection of endpoints (e.g., a REST API or gRPC Service)." .
+    rdfs:comment "A collection of endpoints." ;
+    sys:design_context "Abstracts the communication protocol for a service." ;
+    sys:log_context "Log protocol-level metadata (e.g., TLS version)." .
 
 sys:Endpoint a owl:Class ;
-    rdfs:comment "A specific functional entry point (e.g., GET /users)." .
+    rdfs:comment "A specific functional entry point." ;
+    sys:design_context "Smallest unit of functional access." ;
+    sys:log_context "Log request_id, latency, and status code." .
 
 sys:Table a owl:Class ;
-    rdfs:comment "A logical database table or collection." .
+    rdfs:comment "A logical database table or collection." ;
+    sys:design_context "Storage schema for a specific entity type." ;
+    sys:log_context "Log row counts or storage growth metrics." .
 
 sys:Database a owl:Class ;
-    rdfs:comment "A logical database instance (e.g., a Postgres Cluster)." .
+    rdfs:comment "A logical database instance." ;
+    sys:design_context "The physical or logical host for persisted data." ;
+    sys:log_context "Log connection health and IOPS." .
 
-# Properties (Relationships)
+# --- Object Properties ---
+
+# The Anchor: Links subsystem to physical cluster or site.
+sys:partOfCluster a owl:ObjectProperty ;
+    rdfs:domain sys:SubSystem ;
+    rdfs:range sys:Cluster ;
+    rdfs:comment "Links a modular subsystem to its physical hosting site." ;
+    sys:design_context "Defines a bounded context within the system." ;
+    sys:log_context "Log service_id and deployment_version." .
+
+# The Anchor: Links logical components to sub system.
+sys:belongsToSubSystem a owl:ObjectProperty ;
+    rdfs:domain [ owl:unionOf (sys:Service sys:Database sys:Interface) ] ;
+    rdfs:range sys:SubSystem ;
+    rdfs:comment "The new anchor for modular services." ;
+    sys:design_context "Defines a bounded context within the system." ;
+    sys:log_context "Log service_id and deployment_version." .
+
+# Cluster specific GeoHA configuration property.
+sys:hasGeoConfig a owl:ObjectProperty ;
+    rdfs:domain sys:Cluster ;
+    rdfs:range sys:GeoHAConfig ;
+    rdfs:comment "Links a cluster to its specific HA orchestration settings." ;
+    sys:design_context "Defines a bounded context within the system." ;
+    sys:log_context "Log service_id and deployment_version." .
+
+# The Switch: Links the Global DNS to the current primary site
+sys:pointsToActive a owl:ObjectProperty ;
+    rdfs:domain sys:UnifiedEndpoint ;
+    rdfs:range sys:Cluster ;
+    rdfs:comment "Relates the global entry point to the current Active cluster." ;
+    sys:design_context "Dynamic link representing the current primary traffic target." ;
+    sys:log_context "Trace entry points into the service." .
+
+# GeoHA server configuration
+sys:dnsServerAddress a owl:DatatypeProperty ;
+    rdfs:domain sys:GeoHAConfig ;
+    rdfs:range xsd:string ;
+    sys:design_context "IP address of the DNS server where mgmt and data FQDN are configured." ;
+    sys:log_context "Trace entry points into the service." .
+
+sys:scpServerHost a owl:DatatypeProperty ;
+    rdfs:domain sys:GeoHAConfig ;
+    rdfs:range xsd:string ;
+    sys:design_context "IP address of the SCP server used to exchange data between Geo sites." ;
+    sys:log_context "Trace entry points into the service." .
+
+sys:scpTargetPath a owl:DatatypeProperty ;
+    rdfs:domain sys:GeoHAConfig ;
+    rdfs:range xsd:string ;
+    sys:design_context "The path on the SCP server where the data between geo sites are shared." ;
+    sys:log_context "Trace entry points into the service." .
+
+# Arbitration & Switchover Logic
+sys:arbitrationType a owl:DatatypeProperty ;
+    rdfs:domain sys:GeoHAConfig ;
+    rdfs:range xsd:string ; # e.g., "manual", "automatic"
+    rdfs:comment "Determines if failover requires human intervention." ;
+    sys:design_context "Decides if the switchover arbitration is performed manually or automatically." ;
+    sys:log_context "Trace entry points into the service." .
+
+# Timings
+sys:syncPeriodicity a owl:DatatypeProperty ;
+    rdfs:domain sys:GeoHAConfig ;
+    rdfs:range xsd:integer ; # Seconds or Milliseconds
+    rdfs:comment "Frequency of data/config synchronization." ;
+    sys:design_context "Number of times the database sync is performed in a day." ;
+    sys:log_context "Trace entry points into the service." .
+
+# Plane-Specific Dependencies (Sub-properties of dependsOn)
+sys:replicatesTo a owl:ObjectProperty ;
+    rdfs:subPropertyOf sys:dependsOn ;
+    rdfs:domain sys:Database ;
+    rdfs:range sys:Database ;
+    rdfs:comment "Data plane replication from Active to Standby." ;
+    sys:design_context "The direction of the database replication from active to standby." ;
+    sys:log_context "Trace entry points into the service." .
+
+sys:monitors a owl:ObjectProperty ;
+    rdfs:subPropertyOf sys:dependsOn ;
+    rdfs:domain sys:Service ; # Specifically for the Agent
+    rdfs:range sys:Service ;
+    rdfs:comment "Control plane heartbeat between HA agents." ;
+    sys:design_context "The relationship of the heartbeat between the agent on active and standby." ;
+    sys:log_context "Trace entry points into the service." .
+
 sys:exposes a owl:ObjectProperty ;
     rdfs:domain sys:Service ;
-    rdfs:range sys:Interface .
+    rdfs:range sys:Interface ;
+    sys:design_context "Links a service to its external API surface." ;
+    sys:log_context "Trace entry points into the service." .
 
 sys:containsEndpoint a owl:ObjectProperty ;
     rdfs:domain sys:Interface ;
-    rdfs:range sys:Endpoint .
+    rdfs:range sys:Endpoint ;
+    sys:design_context "Groups specific routes under an interface." ;
+    sys:log_context "Log endpoint-specific routing success." .
 
 sys:invokes a owl:ObjectProperty ;
     rdfs:domain sys:Service ;
-    rdfs:range sys:Endpoint .
+    rdfs:range sys:Endpoint ;
+    sys:design_context "Represents a synchronous outbound dependency." ;
+    sys:log_context "Pass and log correlation-id for distributed tracing." .
 
-sys:tableName a owl:DatatypeProperty ;
-    rdfs:domain sys:Table ;
-    rdfs:range xsd:string .
+sys:dependsOn a owl:ObjectProperty ;
+    rdfs:domain sys:Service ;
+    rdfs:range [ owl:unionOf (sys:Service sys:Endpoint sys:Database) ] ;
+    sys:design_context "General dependency link for failure impact analysis." ;
+    sys:log_context "Log circuit breaker status for this dependency." .
 
-sys:dbEngine a owl:DatatypeProperty ;
-    rdfs:domain sys:Database ;
-    rdfs:range xsd:string .
-
-sys:protocol a owl:DatatypeProperty ;
-    rdfs:domain sys:Interface ;
-    rdfs:range xsd:string .
-
-sys:path a owl:DatatypeProperty ;
-    rdfs:domain sys:Endpoint ;
-    rdfs:range xsd:string .
-
-sys:method a owl:DatatypeProperty ;
-    rdfs:domain sys:Endpoint ;
-    rdfs:range xsd:string .
-
-# Data Ownership & Storage Chain
 sys:managesTable a owl:ObjectProperty ;
     rdfs:domain sys:Service ;
-    rdfs:range sys:Table .
+    rdfs:range sys:Table ;
+    sys:design_context "Strictly identifies the 'Owner' service of data." ;
+    sys:log_context "Log data ownership for compliance/GDPR." .
 
 sys:residesIn a owl:ObjectProperty ;
     rdfs:domain sys:Table ;
     rdfs:range sys:Database ;
-    rdfs:comment "Links a logical table to a logical database instance." .
+    sys:design_context "Maps logical entities to physical infrastructure." ;
+    sys:log_context "Log physical storage location for debugging." .
 
-# The Infrastructure Bridge Property
+# --- Datatype Properties ---
+
+# Local Identification
+sys:virtualIP a owl:DatatypeProperty ;
+    rdfs:domain sys:Cluster ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The local Virtual IP (VIP) managed by the cluster's load balancer." ;
+    sys:design_context "Maps logical entities to physical infrastructure." ;
+    sys:log_context "Log physical storage location for debugging." .
+
+sys:dnsName a owl:DatatypeProperty ;
+    rdfs:domain sys:UnifiedEndpoint ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The FQDN used for global access (e.g., api.service.com)." ;
+    sys:design_context "Maps logical entities to physical infrastructure." ;
+    sys:log_context "Log physical storage location for debugging." .
+
+sys:controlPlaneFQDN a owl:DatatypeProperty ;
+    rdfs:domain sys:UnifiedEndpoint ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The FQDN used for Heartbeats and Cluster Management." ;
+    sys:design_context "Maps logical entities to physical infrastructure." ;
+    sys:log_context "Log physical storage location for debugging." .
+
+sys:dataPlaneFQDN a owl:DatatypeProperty ;
+    rdfs:domain sys:UnifiedEndpoint ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The FQDN used for Database replication and application data traffic." ;
+    sys:design_context "Maps logical entities to physical infrastructure." ;
+    sys:log_context "Log physical storage location for debugging." .
+
+sys:tableName a owl:DatatypeProperty ;
+    rdfs:domain sys:Table ;
+    rdfs:range xsd:string ;
+    sys:design_context "The name of the collection in the DB." ;
+    sys:log_context "Use as a tag in database audit logs." .
+
+sys:dbEngine a owl:DatatypeProperty ;
+    rdfs:domain sys:Database ;
+    rdfs:range xsd:string ;
+    sys:design_context "Technology type (e.g., PostgreSQL, Mongo)." ;
+    sys:log_context "Determine log format based on engine type." .
+
+sys:protocol a owl:DatatypeProperty ;
+    rdfs:domain sys:Interface ;
+    rdfs:range xsd:string ;
+    sys:design_context "The communication standard (REST, gRPC)." ;
+    sys:log_context "Log protocol to filter traffic types." .
+
+sys:path a owl:DatatypeProperty ;
+    rdfs:domain sys:Endpoint ;
+    rdfs:range xsd:string ;
+    sys:design_context "The URI or method path." ;
+    sys:log_context "Primary key for log aggregation by route." .
+
+sys:method a owl:DatatypeProperty ;
+    rdfs:domain sys:Endpoint ;
+    rdfs:range xsd:string ;
+    sys:design_context "The HTTP verb (GET, POST, etc.)." ;
+    sys:log_context "Log to differentiate read vs write operations." .
+
 sys:k8sRef a owl:DatatypeProperty ;
     rdfs:domain sys:Service ;
     rdfs:range xsd:string ;
-    rdfs:comment "The label used to link this service to the K8s Ontology (e.g., app-name)." .
+    sys:design_context "Cross-reference key for K8s deployments." ;
+    sys:log_context "Link application logs to K8s pod/node logs." .
